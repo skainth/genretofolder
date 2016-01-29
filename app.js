@@ -6,27 +6,13 @@ var recursive = require('recursive-readdir');
 var fs_extra = require('fs-extra');
 var mkdirp = require('mkdirp');
 var fs = require('fs');
+var config = require('./config');
 
 String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
 
-var config = {lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/", targetFolder: "/Users/z001hmj/out/Muzik", ignoredFolders:['4. New folder'], splitters: [',', ';'],
-                genreToFolder:{
-                    'Bhangra': "Punjabi/Bhangra",
-                    'Punjabi Pop': "Punjabi/Punjabi Pop",
-                    "Punjabi Soul": "Punjabi/Punjabi Soul",
-                    "Hindi Pop":"Hindi/Hindi Pop",
-                    "Hindi Soul":"Hindi/Hindi Soul",
-                    "English Pop": "English/English Pop",
-                    "English Soul": "English/English Soul",
-                    "Instrumental": "Instrumental",
-                    "Hindi Instrumental": "Instrumental/Hindi Instrumental",
-                    "Lounge": "Instrumental/Lounge",
-                    "Sufi":"Sufi",
-                    "Others":"Others"
-                }
-            };
+var log = console.log;
 
 deleteFolderRecursive(config.targetFolder);
 
@@ -45,10 +31,11 @@ recursive(config.lookUpFolder, function (err, files) {
             processor.process(file, action)
         }
         else
-            ;//log("Ignored", file);
+            log("Ignored", file);
     })
 });
 
+log("Done")
 function ignore(file){
     for(var index = 0; index < config.ignoredFolders.length; index++){
         var folderName = config.ignoredFolders[index].toLowerCase();
@@ -56,10 +43,11 @@ function ignore(file){
             return true;
         }
     }
+    if(file.toLowerCase().indexOf('wma') > -1)
+        return false;
     return !(file.toLowerCase().indexOf('mp3') > -1);
 }
 
-var log = console.log;
 
 setTimeout(function(){
     log("numFiles", numFiles, "includedFiles", includedFiles, "ignored", numFiles - includedFiles)
@@ -103,12 +91,10 @@ function copyToFolder(filePath, genre){
     var newFullPath = getPathForFile(newPathToFolder, filePath);;
 
     if(fs.exists(newPathToFolder)){
-        //log("To ", newFullPath)
+        log("To ", newFullPath)
         fs_extra.copySync(filePath, newFullPath);
     }else{
-
-        //mkdirSyncRecursive(newPathToFolder);
-        log("Create folder To ", newPathToFolder);
+        //log("Create folder To ", newPathToFolder);
         mkdirp(newPathToFolder, function(err){
             if(!err)
                 fs_extra.copySync(filePath, newFullPath);
@@ -116,14 +102,12 @@ function copyToFolder(filePath, genre){
                 log(err, newFullPath);
         })
     }
-
-    //fs_extra.copySync(filePath, newPath);
 }
 
 function getFolderForGenre(genre){
     var newPathToFolder = "";
     if(!config.genreToFolder[genre]){
-        log("Not folder for ", genre);
+        //log("Not folder for ", genre);
         newPathToFolder = config.targetFolder + "/" +  config.genreToFolder["Others"] + "/" + genre;
     }
     else
