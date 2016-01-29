@@ -8,6 +8,10 @@ var mkdirp = require('mkdirp');
 var fs = require('fs');
 var config = require('./config');
 
+/*process.on('uncaughtException', function (error) {
+    console.log(error.stack);
+});*/
+
 String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
@@ -21,20 +25,20 @@ deleteFolderRecursive(config.targetFolder);
     // object returned from `fs.lstat()`.
     return stats.isDirectory();
 }*/
-var numFiles = 0, includedFiles = 0;
+var includedFiles = 0;
 var allFiles = []
 recursive(config.lookUpFolder, function (err, files) {
     // Files is an array of filenames
-    numFiles = allFiles.length;
     allFiles = files;
-    files.forEach(function(file, index, allFiles){
+    processor.process(allFiles[0], action_NEW, 0)
+    /*files.forEach(function(file, index, allFiles){
         if(!ignore(file)) {
             ++includedFiles;
             processor.process(file, action_NEW, index)
         }
         else
             ;//log("Ignored", file);
-    });
+    });*/
 });
 
 function action_NEW(err, data, index){
@@ -43,13 +47,39 @@ function action_NEW(err, data, index){
     }
     var nextFile = allFiles[index + 1];
     if(nextFile) {
-        if (!ignore(nextFile))
-            processor.process(nextFile, action, index + 1);
+        if (!ignore(nextFile)) {
+            processor.process(nextFile, action_NEW, index + 1);
+            if(!data)
+            return;
+            var file = data.file;
+            var genres = data.metadata.genre;
+            log(data.file, genres);
+            if(genres && genres.length > 0){
+                genres.forEach(function(genre){
+                    //log(file, genre);
+                    var processedFile = false;
+                    config.splitters.forEach(function(splitter){
+                        if(genre.indexOf(splitter) > -1){
+                            var genreList = genre.split(splitter);
+                            //log(file, genreList, data.metadata.genre);
+                            genreList.forEach(function(genre){
+                                copyToFolder(file, genre);
+                                processedFile = true;
+                            });
+                        }
+                    });
+                    if(!processedFile)
+                        copyToFolder(file, genre);
+                });
+            }
+        }else{
+            action_NEW(null, false, index + 1);
+        }
     }
     else{
-        log("All Done", "numFiles", numFiles, "includedFiles", includedFiles, "ignored", numFiles - includedFiles);
+        log("All Done", "number of files", allFiles.length, "includedFiles", includedFiles, "ignored", allFiles.length - includedFiles);
     }
-} 
+}
 
 function ignore(file){
     for(var index = 0; index < config.ignoredFolders.length; index++){
