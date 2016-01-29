@@ -22,20 +22,35 @@ deleteFolderRecursive(config.targetFolder);
     return stats.isDirectory();
 }*/
 var numFiles = 0, includedFiles = 0;
+var allFiles = []
 recursive(config.lookUpFolder, function (err, files) {
-    // Files is an array of filename
-    numFiles = files.length;
-    files.forEach(function(file){
+    // Files is an array of filenames
+    numFiles = allFiles.length;
+    allFiles = files;
+    files.forEach(function(file, index, allFiles){
         if(!ignore(file)) {
             ++includedFiles;
-            processor.process(file, action)
+            processor.process(file, action_NEW, index)
         }
         else
-            log("Ignored", file);
-    })
+            ;//log("Ignored", file);
+    });
 });
 
-log("Done")
+function action_NEW(err, data, index){
+    if(err){
+        log("Error", data.file)
+    }
+    var nextFile = allFiles[index + 1];
+    if(nextFile) {
+        if (!ignore(nextFile))
+            processor.process(nextFile, action, index + 1);
+    }
+    else{
+        log("All Done", "numFiles", numFiles, "includedFiles", includedFiles, "ignored", numFiles - includedFiles);
+    }
+} 
+
 function ignore(file){
     for(var index = 0; index < config.ignoredFolders.length; index++){
         var folderName = config.ignoredFolders[index].toLowerCase();
@@ -47,12 +62,6 @@ function ignore(file){
         return false;
     return !(file.toLowerCase().indexOf('mp3') > -1);
 }
-
-
-setTimeout(function(){
-    log("numFiles", numFiles, "includedFiles", includedFiles, "ignored", numFiles - includedFiles)
-}, 2000);
-log("Up!");
 
 function action(err, data){
     if (err)
