@@ -37,10 +37,12 @@ recursive(config.lookUpFolder, function (err, files) {
 
 //Files/Directories to be ignored
 function ignore(file){
-    for(var index = 0; index < config.ignoredFolders.length; index++){
-        var folderName = config.ignoredFolders[index].toLowerCase();
-        if(file.toLowerCase().indexOf(folderName) > -1) {
-            return true;
+    if(config.ignoredFolders) {
+        for (var index = 0; index < config.ignoredFolders.length; index++) {
+            var folderName = config.ignoredFolders[index].toLowerCase();
+            if (file.toLowerCase().indexOf(folderName) > -1) {
+                return true;
+            }
         }
     }
     if(file.toLowerCase().indexOf('wma') > -1)
@@ -53,6 +55,7 @@ function handleFile(atIndex){
     var file = allFiles[atIndex];
     if(!file){ // no more files
         console.log("No more files to process");
+        moveFilesToProperFolders(masterData);
         return;
     }
     if(ignore(file)){
@@ -65,7 +68,7 @@ function handleFile(atIndex){
 // Callback to handle data received from id3 handler lib
 function onDataExtracted(err, data){
     if(err){	// Some error processing last file
-        log("Error processing file", data.file);
+        log("Error processing file", data.file, err);
     }else{
         processFileData(data);
     }
@@ -76,23 +79,46 @@ function onDataExtracted(err, data){
 // Process data actually
 function processFileData(data){
     var file = data.file;
+    var fileInfo = {file: data.file, metaData: {}};
     config.metaDataAttrs.forEach(function(metaDataAttr){
         var metaDataObject = data.metadata[metaDataAttr.name];
         try {
             if(Array.isArray(metaDataObject)) {
                 metaDataObject.forEach(function (metaData) {
-                    parseMetaData(file, metaData, metaDataAttr);
+                    parseMetaData(file, metaData, metaDataAttr, fileInfo);
                 });
             } else {
-                parseMetaData(file, metaDataObject, metaDataAttr);
+                parseMetaData(file, metaDataObject, metaDataAttr, fileInfo);
             }
         }catch(e){
             log("EXCEPTION", e, metaDataAttr);
             throw e
         }
     });
+    moveFiletoBuckets(fileInfo);
 }
-function parseMetaData(file, metaData, metaDataAttr){
+function moveFiletoBuckets(fileInfo){
+    log(fileInfo);
+    for(var index = 0; index < config.metaDataAttrs.length; index ++){
+        var configMetaData = config.metaDataAttrs[index];
+        if(fileInfo.metaData[configMetaData.name]){
+            if(!masterData[configMetaData.name])
+                masterData[configMetaData.name] = [];
+            //masterData[configMetaData.name] =
+            fileInfo.metaData[configMetaData.name].forEach(function(data){
+                if(!masterData[configMetaData.name][data])
+                    masterData[configMetaData.name][data] = [];
+                masterData[configMetaData.name][data].push(fileInfo.file);
+            })
+        }
+    }
+    //if(fileInfo.metaData[config.metaDataAttrs])
+}
+function moveFilesToProperFolders(masterData){
+    log(masterData)
+}
+function parseMetaData(file, metaData, metaDataAttr, fileInfo){
+    metaData = metaData.trim();
     var processedFile = false;
     if(metaDataAttr.splitters) {
         metaDataAttr.splitters.forEach(function (splitter) {
@@ -100,23 +126,41 @@ function parseMetaData(file, metaData, metaDataAttr){
                 var metaDataSplit = metaData.split(splitter);
                 //log(file, genreList, data.metadata.genre);
                 metaDataSplit.forEach(function (mData) {
-                    saveFileData(file, mData, metaDataAttr.name);
+                    mData = mData.trim();
+                    saveFileData(file, mData, metaDataAttr.name, fileInfo);
                     processedFile = true;
                 });
             }
         });
         if (!processedFile)
-            saveFileData(file, metaData, metaDataAttr.name);
+            saveFileData(file, metaData, metaDataAttr.name, fileInfo);
     }else{
-        saveFileData(file, metaData, metaDataAttr.name);
+        saveFileData(file, metaData, metaDataAttr.name, fileInfo);
     }
 }
 
 // Save file to path based upon its genre
-function saveFileData(file, genre){
-    if(!masterData[genre])
-        masterData[genre] = [];
-    copyToFolder(file, genre);
+function saveFileData(file, metaData, metaDataAttrName, fileInfo){
+    if(!fileInfo.metaData[metaDataAttrName])
+        fileInfo.metaData[metaDataAttrName] = [];
+    fileInfo.metaData[metaDataAttrName].push(metaData);
+
+  /*  var masterDataForPrimary = null;
+    switch(metaDataAttrName){
+        if() 'genre':{
+            if(!masterData[metaDataAttrName])
+                masterData[metaDataAttrName] = [];
+            masterDataForPrimary = masterData[metaDataAttrName];
+            break;
+        }
+        case 'artist':{
+        }
+    }*/
+    /*if(metaDataAttrName == "genre") {
+        if (!masterData[metaData])
+            masterData[metaData] = [];
+        copyToFolder(file, metaData);
+    }*/
 }
 
 // Copy file to folder depending upon the file's genre
@@ -138,6 +182,7 @@ function copyToFolder(filePath, genre){
 }
 
 function getFolderForGenre(genre){
+    genre = genre.trim();
     var newPathToFolder = "";
     if(!config.genreToFolder[genre]){
         newPathToFolder = config.targetFolder + "/" +  config.genreToFolder["Others"] + "/" + genre;
