@@ -27,8 +27,12 @@ var allFiles = []
 // Get all files in the source folder
 recursive(config.lookUpFolder, function (err, files) {
     // Files is an array of filenames
-    allFiles = files;
-    handleFile(0);
+    if(err){
+        log("scan look up directory", config.lookUpFolder, "failed with error", err);
+    }else{
+        allFiles = files;
+        handleFile(0);
+    }
 });
 
 //Files/Directories to be ignored
@@ -72,26 +76,42 @@ function onDataExtracted(err, data){
 // Process data actually
 function processFileData(data){
     var file = data.file;
-    var genres = data.metadata.genre;
-    if(genres && genres.length > 0){
-        genres.forEach(function(genre){
-            //log(file, genre);
-            var processedFile = false;
-            config.splitters.forEach(function(splitter){
-                if(genre.indexOf(splitter) > -1){
-                    var genreList = genre.split(splitter);
-                    //log(file, genreList, data.metadata.genre);
-                    genreList.forEach(function(genre){
-                        saveFileData(file, genre, data.metadata);
-                        processedFile = true;
-                    });
-                }
-            });
-            if(!processedFile)
-                saveFileData(file, genre), data.metadata;
+    config.metaDataAttrs.forEach(function(metaDataAttr){
+        var metaDataObject = data.metadata[metaDataAttr.name];
+        try {
+            if(Array.isArray(metaDataObject)) {
+                metaDataObject.forEach(function (metaData) {
+                    parseMetaData(file, metaData, metaDataAttr);
+                });
+            } else {
+                parseMetaData(file, metaDataObject, metaDataAttr);
+            }
+        }catch(e){
+            log("EXCEPTION", e, metaDataAttr);
+            throw e
+        }
+    });
+}
+function parseMetaData(file, metaData, metaDataAttr){
+    var processedFile = false;
+    if(metaDataAttr.splitters) {
+        metaDataAttr.splitters.forEach(function (splitter) {
+            if (metaData.indexOf(splitter) > -1) {
+                var metaDataSplit = metaData.split(splitter);
+                //log(file, genreList, data.metadata.genre);
+                metaDataSplit.forEach(function (mData) {
+                    saveFileData(file, mData, metaDataAttr.name);
+                    processedFile = true;
+                });
+            }
         });
+        if (!processedFile)
+            saveFileData(file, metaData, metaDataAttr.name);
+    }else{
+        saveFileData(file, metaData, metaDataAttr.name);
     }
 }
+
 // Save file to path based upon its genre
 function saveFileData(file, genre){
     if(!masterData[genre])

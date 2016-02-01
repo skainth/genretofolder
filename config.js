@@ -1,7 +1,17 @@
 /**
  * Created by z001hmj on 1/29/16.
  */
-module.exports = {lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/", targetFolder: "/Users/z001hmj/out/Muzik", ignoredFolders:['4. New folder'], splitters: [',', ';'],
+module.exports = {
+    //lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Lembher Hussainpuri",
+    lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
+    targetFolder: "/Users/z001hmj/out/Muzik",
+    ignoredFolders:['4. New folder'],
+    metaDataAttrs: [
+        {name: 'genre', splitters: [',', ';']},
+        {name: 'artist', splitters: [',', ';']},
+        {name: 'album'}
+    ],
+    splitters: [',', ';'],
     genreToFolder:{
         'Bhangra': "Punjabi/Bhangra",
         'Punjabi Pop': "Punjabi/Punjabi Pop",
