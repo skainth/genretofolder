@@ -5,12 +5,12 @@ var fs = require('fs');
 var mm = require('musicmetadata');
 
 module.exports = {
-    process: function(file, callback, index){
+    process: function(file, callback){
         var parser = mm(fs.createReadStream(file), function (err, metadata) {
             var data = {file: file};
             if(metadata)
                 data.metadata = metadata
-            callback && callback(err, data, index);
+            callback && callback(err, data);
         });
     }
 };
