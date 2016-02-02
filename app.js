@@ -7,15 +7,15 @@ var mkdirp = require('mkdirp');
 var fs = require('fs');
 var config = require('./config');
 
+var log = console.log;
+
 /*process.on('uncaughtException', function (error) {
-    console.log(error.stack);
+    log(error.stack);
 });*/
 
 String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
-
-var log = console.log;
 
 var masterData = [];
 
@@ -54,7 +54,7 @@ function ignore(file){
 function handleFile(atIndex){
     var file = allFiles[atIndex];
     if(!file){ // no more files
-        console.log("No more files to process");
+        log("No more files to process");
         moveFilesToProperFolders(masterData);
         return;
     }
@@ -98,7 +98,6 @@ function processFileData(data){
     moveFiletoBuckets(fileInfo);
 }
 function moveFiletoBuckets(fileInfo){
-    log(fileInfo);
     for(var index = 0; index < config.metaDataAttrs.length; index ++){
         var configMetaData = config.metaDataAttrs[index];
         if(fileInfo.metaData[configMetaData.name]){
@@ -115,7 +114,8 @@ function moveFiletoBuckets(fileInfo){
     //if(fileInfo.metaData[config.metaDataAttrs])
 }
 function moveFilesToProperFolders(masterData){
-    log(masterData)
+    //log(masterData);
+    log("I'm Done!");
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
     metaData = metaData.trim();
@@ -124,7 +124,6 @@ function parseMetaData(file, metaData, metaDataAttr, fileInfo){
         metaDataAttr.splitters.forEach(function (splitter) {
             if (metaData.indexOf(splitter) > -1) {
                 var metaDataSplit = metaData.split(splitter);
-                //log(file, genreList, data.metadata.genre);
                 metaDataSplit.forEach(function (mData) {
                     mData = mData.trim();
                     saveFileData(file, mData, metaDataAttr.name, fileInfo);
@@ -156,11 +155,11 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
         case 'artist':{
         }
     }*/
-    /*if(metaDataAttrName == "genre") {
+    if(metaDataAttrName == "genre") {
         if (!masterData[metaData])
             masterData[metaData] = [];
         copyToFolder(file, metaData);
-    }*/
+    }
 }
 
 // Copy file to folder depending upon the file's genre
@@ -169,7 +168,6 @@ function copyToFolder(filePath, genre){
     var newFullPath = getPathForFile(newPathToFolder, filePath);;
 
     if(fs.exists(newPathToFolder)){
-        log("To ", newFullPath)
         fs_extra.copySync(filePath, newFullPath);
     }else{
         mkdirp(newPathToFolder, function(err){
