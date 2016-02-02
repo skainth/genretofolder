@@ -70,6 +70,7 @@ function onDataExtracted(err, data){
     if(err){	// Some error processing last file
         log("Error processing file", data.file, err);
     }else{
+        //log(Date.parse(data.mtime));
         processFileData(data);
     }
     // process next file
@@ -155,11 +156,11 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
         case 'artist':{
         }
     }*/
-    if(metaDataAttrName == "genre") {
+    /*if(metaDataAttrName == "genre") {
         if (!masterData[metaData])
             masterData[metaData] = [];
         copyToFolder(file, metaData);
-    }
+    }*/
 }
 
 // Copy file to folder depending upon the file's genre
