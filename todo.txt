@@ -3,6 +3,7 @@ db.js configurable json file
 files which are in src and should be in target but are not
   deleteAllTargetFilesIn(_.without(target,src))
 update files with error
+Add config for supported extentions
 
 file doc
   from: path_to_f1
