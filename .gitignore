@@ -31,3 +31,5 @@ node_modules
 #Webstorm config directory
 .idea
 # Created by .ignore support plugin (hsz.mobi)
+
+data.json

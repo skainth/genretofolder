@@ -7,11 +7,11 @@ var mm = require('musicmetadata');
 module.exports = {
     process: function(file, callback){
         var parser = mm(fs.createReadStream(file), function (err, metadata) {
+            var data = {file: file};
             if(err){
-                return callback && callback(err, null);
+                return callback && callback(err, data);
             }
             if(callback) {
-                var data = {file: file};
                 if (metadata)
                     data.metadata = metadata;
 
@@ -19,6 +19,9 @@ module.exports = {
                         if (fsStatErr)
                             callback(fsStatErr, data);
                         else {
+                            stats.atime = Date.parse(stats.atime);
+                            stats.mtime = Date.parse(stats.mtime);
+                            stats.ctime = Date.parse(stats.ctime);
                             MergeRecursive(data, stats);
                             callback(fsStatErr, data);
                         }

@@ -1,11 +1,21 @@
 // Program to arrange mp3/wma file based upon their genre(s)
 
+var _ = require('underscore');
 var processor = require('./Processor');
+
+var DB = require('./db');
+
 var recursive = require('recursive-readdir');
 var fs_extra = require('fs-extra');
 var mkdirp = require('mkdirp');
 var fs = require('fs');
 var config = require('./config');
+/*
+var loki = require('loki');
+var lokidb = new loki(config.dbfile);
+var children = lokidb.addCollection("music");
+*/
+
 
 var log = console.log;
 
@@ -17,23 +27,27 @@ String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
 
+
 var masterData = [];
 
 // Clean up target folder. TODO: Ask for confirmation
-deleteFolderRecursive(config.targetFolder);
+//deleteFolderRecursive(config.targetFolder);
 
-var allFiles = []
+var allFiles = [];
 
-// Get all files in the source folder
-recursive(config.lookUpFolder, function (err, files) {
-    // Files is an array of filenames
-    if(err){
-        log("scan look up directory", config.lookUpFolder, "failed with error", err);
-    }else{
-        allFiles = files;
-        handleFile(0);
-    }
+var db = new DB('data.json', function(){
+    // Get all files in the source folder
+    recursive(config.lookUpFolder, function (err, files) {
+        // Files is an array of filenames
+        if(err){
+            log("scan look up directory", config.lookUpFolder, "failed with error", err);
+        }else{
+            allFiles = files;
+            handleFile(0);
+        }
+    });
 });
+
 
 //Files/Directories to be ignored
 function ignore(file){
@@ -80,7 +94,7 @@ function onDataExtracted(err, data){
 // Process data actually
 function processFileData(data){
     var file = data.file;
-    var fileInfo = {file: data.file, metaData: {}};
+    var fileInfo = _.extend({file: data.file, metaData: {}}, data);
     config.metaDataAttrs.forEach(function(metaDataAttr){
         var metaDataObject = data.metadata[metaDataAttr.name];
         try {
@@ -116,7 +130,14 @@ function moveFiletoBuckets(fileInfo){
 }
 function moveFilesToProperFolders(masterData){
     //log(masterData);
+    //db.show();
+    db.persist();
+    db.keys(checkFileMismatch);
     log("I'm Done!");
+}
+function checkFileMismatch(srcFilePaths){
+    var diff = _.difference(allFiles, srcFilePaths);
+    log("Differences", diff);
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
     metaData = metaData.trim();
@@ -156,28 +177,51 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
         case 'artist':{
         }
     }*/
-    /*if(metaDataAttrName == "genre") {
+    if(metaDataAttrName == "genre") {
         if (!masterData[metaData])
             masterData[metaData] = [];
-        copyToFolder(file, metaData);
-    }*/
+        copyToFolder(file, fileInfo, metaData);
+    }
 }
 
 // Copy file to folder depending upon the file's genre
-function copyToFolder(filePath, genre){
+function copyToFolder(filePath, fileInfo, genre){
     var newPathToFolder = getFolderForGenre(genre);;
     var newFullPath = getPathForFile(newPathToFolder, filePath);;
 
     if(fs.exists(newPathToFolder)){
-        fs_extra.copySync(filePath, newFullPath);
+        doFileCopy(filePath, fileInfo, newFullPath);
     }else{
         mkdirp(newPathToFolder, function(err){
-            if(!err)
-                fs_extra.copySync(filePath, newFullPath);
+            if(!err) {
+                doFileCopy(filePath, fileInfo, newFullPath);
+            }
             else
                 log(err, newFullPath);
         })
     }
+}
+
+function doFileCopy(filePath, fileInfo, newFullPath){
+    //log(filePath, "TO", newFullPath, fileInfo.atime, fileInfo.mtime);
+
+    var fileRecord = db.get(filePath);
+    if(fileRecord){
+        //log("FOUND", filePath);
+        if(fileRecord.fileInfo.mtime != fileInfo.mtime) {
+            log("UPDATED", filePath, fileRecord.fileInfo.atime, fileInfo.atime, fileRecord.fileInfo.atime != fileInfo.atime);
+            db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
+            fs_extra.copySync(filePath, newFullPath)
+        }
+        else {
+            //log("NOT UPDATED", filePath);
+        }
+    }else{
+        log("NOT FOUND", filePath)
+        db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
+        fs_extra.copySync(filePath, newFullPath)
+    }
+    //fs_extra.copySync(filePath, newFullPath)
 }
 
 function getFolderForGenre(genre){

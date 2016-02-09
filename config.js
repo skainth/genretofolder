@@ -2,8 +2,8 @@
  * Created by z001hmj on 1/29/16.
  */
 module.exports = {
-    lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Lembher Hussainpuri",
-    //lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
+     //lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Lembher Hussainpuri",
+    lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
     targetFolder: "/Users/z001hmj/out/Muzik",
     //ignoredFolders:['4. New folder'],
     metaDataAttrs: [
@@ -25,5 +25,6 @@ module.exports = {
         "Lounge & Mix": "Instrumental/Lounge",
         "Sufi":"Sufi",
         "Others":"Others"
-    }
+    },
+    dbfile: "loji.json"
 };
