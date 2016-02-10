@@ -11,6 +11,7 @@ function DB(dataFile, callback){
     fs.readFile(dataFile, function(err, fileData){
         if(err){
             console.log("ERROR", err);
+            data = {};
         }else{
             data = JSON.parse(fileData);
         }
@@ -24,10 +25,10 @@ function DB(dataFile, callback){
             obj.files.push(newFullPath);
         }else{
             obj = data[filePath] = {};
-            obj.fileInfo = fileInfo;
             obj.files = [];
             obj.files.push(newFullPath);
         }
+        obj.fileInfo = fileInfo;
     }
     this.get = function(filePath){
         return data[filePath];

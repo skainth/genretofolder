@@ -5,6 +5,7 @@ module.exports = {
      //lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Lembher Hussainpuri",
     lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
     targetFolder: "/Users/z001hmj/out/Muzik",
+    allowedExtentions: ['.mp3', 'wma'],
     //ignoredFolders:['4. New folder'],
     metaDataAttrs: [
         {name: 'genre', splitters: [',', ';']},

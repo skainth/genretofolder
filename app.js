@@ -137,7 +137,7 @@ function moveFilesToProperFolders(masterData){
 }
 function checkFileMismatch(srcFilePaths){
     var diff = _.difference(allFiles, srcFilePaths);
-    log("Differences", diff);
+    //log("Differences", diff);
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
     metaData = metaData.trim();
@@ -209,7 +209,7 @@ function doFileCopy(filePath, fileInfo, newFullPath){
     if(fileRecord){
         //log("FOUND", filePath);
         if(fileRecord.fileInfo.mtime != fileInfo.mtime) {
-            log("UPDATED", filePath, fileRecord.fileInfo.atime, fileInfo.atime, fileRecord.fileInfo.atime != fileInfo.atime);
+            log("UPDATED", filePath, fileRecord.fileInfo.mtime, fileInfo.mtime, fileRecord.fileInfo.mtime != fileInfo.mtime);
             db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
             fs_extra.copySync(filePath, newFullPath)
         }
