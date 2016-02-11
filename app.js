@@ -27,28 +27,47 @@ String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
 
-
 var masterData = [];
 
-// Clean up target folder. TODO: Ask for confirmation
-//deleteFolderRecursive(config.targetFolder);
+if(config.clearTargetFolder) {
+    var prompt = require('prompt');
+    prompt.start();
+    prompt.get(
+        [
+            {name: "clearTarget",
+                "description": "Really clear target folder? (YeSsSsS/n)"}
+        ],
+        function (err, result) {
+            if (result.clearTarget == "YeSsSsS"){
+                log("CLEARING", config.targetFolder);
+                deleteFolderRecursive(config.targetFolder);
+                log("CLEARED", config.targetFolder);
+            }else{
+                log("Target folder " + config.targetFolder + " will NOT be cleared")
+            }
+            startProcessing();
+        });
+}else{
+    startProcessing();
+}
 
-var allFiles = [];
+var allFiles = [], db = null;
 
-var db = new DB('data.json', function(){
-    // Get all files in the source folder
-    recursive(config.lookUpFolder, function (err, files) {
-        // Files is an array of filenames
-        if(err){
-            log("scan look up directory", config.lookUpFolder, "failed with error", err);
-        }else{
-            allFiles = files;
-            handleFile(0);
-        }
+function startProcessing(){
+    log("Processing started");
+    db = new DB('data.json', function(){
+        // Get all files in the source folder
+        recursive(config.lookUpFolder, function (err, files) {
+            // Files is an array of filenames
+            if(err){
+                log("scan look up directory", config.lookUpFolder, "failed with error", err);
+            }else{
+                allFiles = files;
+                handleFile(0);
+            }
+        });
     });
-});
-
-
+}
 //Files/Directories to be ignored
 function ignore(file){
     if(config.ignoredFolders) {
@@ -136,8 +155,12 @@ function moveFilesToProperFolders(masterData){
     log("I'm Done!");
 }
 function checkFileMismatch(srcFilePaths){
-    var diff = _.difference(allFiles, srcFilePaths);
-    //log("Differences", diff);
+    var filesToDelete = [];
+    var sourceFilesNotAvailable = _.difference(srcFilePaths, allFiles);
+    sourceFilesNotAvailable.forEach(function(srcFile){
+        filesToDelete = filesToDelete.concat(db.get(srcFile).files)
+    });
+    log("DEL", filesToDelete);
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
     metaData = metaData.trim();
@@ -217,7 +240,7 @@ function doFileCopy(filePath, fileInfo, newFullPath){
             //log("NOT UPDATED", filePath);
         }
     }else{
-        log("NOT FOUND", filePath)
+        log("NEW", filePath)
         db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
         fs_extra.copySync(filePath, newFullPath)
     }
