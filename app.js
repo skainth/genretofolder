@@ -1,14 +1,15 @@
 // Program to arrange mp3/wma file based upon their genre(s)
 
 var _ = require('underscore');
-var processor = require('./Processor');
-
-var DB = require('./db');
-
 var recursive = require('recursive-readdir');
 var fs_extra = require('fs-extra');
 var mkdirp = require('mkdirp');
 var fs = require('fs');
+var prompt = require('prompt');
+
+var fsutils = require('./fsutils');
+var processor = require('./Processor');
+var DB = require('./db');
 var config = require('./config');
 /*
 var loki = require('loki');
@@ -29,33 +30,11 @@ String.prototype.toProperCase = function () {
 
 var masterData = [];
 
-if(config.clearTargetFolder) {
-    var prompt = require('prompt');
-    prompt.start();
-    prompt.get(
-        [
-            {name: "clearTarget",
-                "description": "Really clear target folder? (YeSsSsS/n)"}
-        ],
-        function (err, result) {
-            if (result.clearTarget == "YeSsSsS"){
-                log("CLEARING", config.targetFolder);
-                deleteFolderRecursive(config.targetFolder);
-                log("CLEARED", config.targetFolder);
-            }else{
-                log("Target folder " + config.targetFolder + " will NOT be cleared")
-            }
-            startProcessing();
-        });
-}else{
-    startProcessing();
-}
-
 var allFiles = [], db = null;
 
 function startProcessing(){
     log("Processing started");
-    db = new DB('data.json', function(){
+    db = new DB(config.dbfile, function(){
         // Get all files in the source folder
         recursive(config.lookUpFolder, function (err, files) {
             // Files is an array of filenames
@@ -150,17 +129,42 @@ function moveFiletoBuckets(fileInfo){
 function moveFilesToProperFolders(masterData){
     //log(masterData);
     //db.show();
-    db.persist();
-    db.keys(checkFileMismatch);
-    log("I'm Done!");
+    db.persist(function(err){
+        if(err){
+            log("Error saving", config.dbfile);
+        }
+        db.keys(checkFileMismatch, function(){
+            log("I'm Done!");
+        });
+    });
 }
-function checkFileMismatch(srcFilePaths){
+function checkFileMismatch(srcFilePaths, cb){
+    var self = this;
+    self.cb = cb;
     var filesToDelete = [];
     var sourceFilesNotAvailable = _.difference(srcFilePaths, allFiles);
     sourceFilesNotAvailable.forEach(function(srcFile){
         filesToDelete = filesToDelete.concat(db.get(srcFile).files)
     });
-    log("DEL", filesToDelete);
+    if(filesToDelete.length > 0){
+        log("Files to Delete");
+        log(filesToDelete);
+        prompt.get([{name: 'delNonExistentFiles', description: "Delete non-existent files? (YesSssSsS/n)"}],
+            function(err, result){
+                log("Self.cb", this.cb)
+                if(1 || result.delNonExistentFiles == "YesSssSsS") {
+                    fsutils.deleteFiles(filesToDelete, function(){
+                       log("HERE", this.cb);
+                       db.delKeysSync(sourceFilesNotAvailable);
+                        log("HACK!!!!!!!! SAVING DB");
+                        db.persist();
+                       self.cb && self.cb();
+               })
+               }else{
+                   cb && cb();
+               }
+            }.bind(self));
+    }
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
     metaData = metaData.trim();
@@ -278,3 +282,25 @@ function deleteFolderRecursive(path) {
         fs.rmdirSync(path);
     }
 };
+
+
+if(config.clearTargetFolder) {
+    prompt.start();
+    prompt.get(
+        [
+            {name: "clearTarget",
+                "description": "Really clear target folder? (YeSsSsS/n)"}
+        ],
+        function (err, result) {
+            if (result.clearTarget == "YeSsSsS"){
+                log("CLEARING", config.targetFolder);
+                deleteFolderRecursive(config.targetFolder);
+                log("CLEARED", config.targetFolder);
+            }else{
+                log("Target folder " + config.targetFolder + " will NOT be cleared")
+            }
+            startProcessing();
+        });
+}else{
+    startProcessing();
+}

@@ -27,7 +27,7 @@ module.exports = {
         "Sufi":"Sufi",
         "Others":"Others"
     },
-    dbfile: "loji.json",
-    clearTargetFolder: true
+    dbfile: "data.json",
+    clearTargetFolder: false
 
 };

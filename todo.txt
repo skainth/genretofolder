@@ -1,16 +1,8 @@
+back up db json before writing to it. Write to it after proper data check
+Remove hack to work around prompt to delete target files for non existent source files
+delete empty folders
 folder images
-db.js configurable json file
-files which are in src and should be in target but are not
-  deleteAllTargetFilesIn(_.without(target,src))
 update files with error
 Add config for supported extentions
-
-file doc
-  from: path_to_f1
-  to: path_to_f2
-  at: {c1, c2, c3}
-
-when copying f1 to t1
-  check if
 
 Updated called twice '/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Jogi Jatt Bangaye.mp3'
