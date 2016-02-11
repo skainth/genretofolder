@@ -1,4 +1,4 @@
-back up db json before writing to it. Write to it after proper data check
+back up db json before writing to it. Write to it after proper data check. On any error close files, revert old db file. check source code of jsonfile
 Remove hack to work around prompt to delete target files for non existent source files
 delete empty folders
 folder images
