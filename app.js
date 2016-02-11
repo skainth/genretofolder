@@ -133,10 +133,11 @@ function moveFilesToProperFolders(masterData){
         if(err){
             log("Error saving", config.dbfile);
         }
-        db.keys(checkFileMismatch, function(){
-            log("I'm Done!");
-        });
+        db.keys(checkFileMismatch, doneProcessing);
     });
+}
+function doneProcessing(){
+    log("I'm Done!");
 }
 function checkFileMismatch(srcFilePaths, cb){
     var self = this;
@@ -152,12 +153,11 @@ function checkFileMismatch(srcFilePaths, cb){
         prompt.get([{name: 'delNonExistentFiles', description: "Delete non-existent files? (YesSssSsS/n)"}],
             function(err, result){
                 log("Self.cb", this.cb)
-                if(1 || result.delNonExistentFiles == "YesSssSsS") {
+                if(result.delNonExistentFiles == "YesSssSsS") {
                     fsutils.deleteFiles(filesToDelete, function(){
                        log("HERE", this.cb);
                        db.delKeysSync(sourceFilesNotAvailable);
-                        log("HACK!!!!!!!! SAVING DB");
-                        db.persist();
+                        doneProcessing();
                        self.cb && self.cb();
                })
                }else{
