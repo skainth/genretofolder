@@ -22,7 +22,6 @@ module.exports = {
                             stats.newmtime = stats.mtime.getTime();
                             stats.newctime = stats.ctime.getTime();
 
-                            stats.atime = Date.parse(stats.atime);
                             stats.mtime = Date.parse(stats.mtime);
                             stats.ctime = Date.parse(stats.ctime);
                             MergeRecursive(data, stats);

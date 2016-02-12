@@ -8,7 +8,6 @@ function DB(dataFile, callback){
     jsonfile.readFile(dataFile, function(err, fileData){
         if(err){
             console.log("ERROR", err);
-            data = {};
         }else{
             if(typeof fileData == "string")
                 data = JSON.parse(fileData);
@@ -37,7 +36,8 @@ function DB(dataFile, callback){
         console.log(data);
     }
     this.persist = function(cb){
-        jsonfile.writeFile(dataFile, data,cb);
+        jsonfile.writeFileSync(dataFile, data);
+        cb && cb();
     }
     this.keys = function(callback){
         callback && callback(Object.keys(data));
@@ -46,9 +46,14 @@ function DB(dataFile, callback){
         if(!Array.isArray(keys)){
             keys = [keys];
         }
+        console.log("Data len before", Object.keys(data).length)
         keys.forEach(function(key){
             delete data[key];
         });
+        console.log("Data len After", Object.keys(data).length)
+    }
+    this.clear = function(){
+        data = {};
     }
 }
 module.exports = DB;

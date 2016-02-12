@@ -11,12 +11,6 @@ var fsutils = require('./fsutils');
 var processor = require('./Processor');
 var DB = require('./db');
 var config = require('./config');
-/*
-var loki = require('loki');
-var lokidb = new loki(config.dbfile);
-var children = lokidb.addCollection("music");
-*/
-
 
 var log = console.log;
 
@@ -29,22 +23,20 @@ String.prototype.toProperCase = function () {
 };
 
 var masterData = [];
-
+var stats = {newFiles: [], updated: [], filesWithError: []};
 var allFiles = [], db = null;
 
 function startProcessing(){
     log("Processing started");
-    db = new DB(config.dbfile, function(){
-        // Get all files in the source folder
-        recursive(config.lookUpFolder, function (err, files) {
-            // Files is an array of filenames
-            if(err){
-                log("scan look up directory", config.lookUpFolder, "failed with error", err);
-            }else{
-                allFiles = files;
-                handleFile(0);
-            }
-        });
+    // Get all files in the source folder
+    recursive(config.lookUpFolder, function (err, files) {
+        // Files is an array of filenames
+        if(err){
+            log("scan look up directory", config.lookUpFolder, "failed with error", err);
+        }else{
+            allFiles = files;
+            handleFile(0);
+        }
     });
 }
 //Files/Directories to be ignored
@@ -80,9 +72,8 @@ function handleFile(atIndex){
 // Callback to handle data received from id3 handler lib
 function onDataExtracted(err, data){
     if(err){	// Some error processing last file
-        log("Error processing file", data.file, err);
+        stats.filesWithError.push({file: data.file, errorMsg: err.message});
     }else{
-        //log(Date.parse(data.mtime));
         processFileData(data);
     }
     // process next file
@@ -126,44 +117,50 @@ function moveFiletoBuckets(fileInfo){
     }
     //if(fileInfo.metaData[config.metaDataAttrs])
 }
-function moveFilesToProperFolders(masterData){
-    //log(masterData);
-    //db.show();
-    db.persist(function(err){
-        if(err){
-            log("Error saving", config.dbfile);
-        }
-        db.keys(checkFileMismatch, doneProcessing);
+function moveFilesToProperFolders(masterData) {
+    db.keys(checkFileMismatch);
+}
+function doneProcessing() {
+    db.persist(function () {
+        showStats();
+        //Copy database file to output folder
+        fs_extra.copy(config.dbfile, config.targetFolder + "/" + config.dbfile);
     });
 }
-function doneProcessing(){
-    log("I'm Done!");
+function showStats(){
+    log("I'm Done!\nStats");
+    log("Error", stats.filesWithError.length);
+    if(stats.filesWithError.length)
+        log(stats.filesWithError);
+    log("\nNew", stats.newFiles.length);
+    if(stats.newFiles.length)
+        log(stats.newFiles);
+    log("\nUpdated", stats.updated.length);
+    if(stats.updated.length)
+        log(stats.updated);
 }
 function checkFileMismatch(srcFilePaths, cb){
-    var self = this;
-    self.cb = cb;
     var filesToDelete = [];
     var sourceFilesNotAvailable = _.difference(srcFilePaths, allFiles);
     sourceFilesNotAvailable.forEach(function(srcFile){
         filesToDelete = filesToDelete.concat(db.get(srcFile).files)
     });
     if(filesToDelete.length > 0){
-        log("Files to Delete");
-        log(filesToDelete);
+        log("Files to Delete", filesToDelete.length);
+        log(filesToDelete)
         prompt.get([{name: 'delNonExistentFiles', description: "Delete non-existent files? (YesSssSsS/n)"}],
             function(err, result){
-                log("Self.cb", this.cb)
                 if(result.delNonExistentFiles == "YesSssSsS") {
                     fsutils.deleteFiles(filesToDelete, function(){
-                       log("HERE", this.cb);
-                       db.delKeysSync(sourceFilesNotAvailable);
+                        db.delKeysSync(sourceFilesNotAvailable);
                         doneProcessing();
-                       self.cb && self.cb();
-               })
+                   })
                }else{
-                   cb && cb();
+                    doneProcessing();
                }
-            }.bind(self));
+            });
+    }else{
+        doneProcessing()
     }
 }
 function parseMetaData(file, metaData, metaDataAttr, fileInfo){
@@ -214,7 +211,7 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
 // Copy file to folder depending upon the file's genre
 function copyToFolder(filePath, fileInfo, genre){
     var newPathToFolder = getFolderForGenre(genre);;
-    var newFullPath = getPathForFile(newPathToFolder, filePath);;
+    var newFullPath = fsutils.getPathForFile(newPathToFolder, filePath);;
 
     if(fs.exists(newPathToFolder)){
         doFileCopy(filePath, fileInfo, newFullPath);
@@ -230,25 +227,25 @@ function copyToFolder(filePath, fileInfo, genre){
 }
 
 function doFileCopy(filePath, fileInfo, newFullPath){
-    //log(filePath, "TO", newFullPath, fileInfo.atime, fileInfo.mtime);
 
     var fileRecord = db.get(filePath);
     if(fileRecord){
-        //log("FOUND", filePath);
         if(fileRecord.fileInfo.mtime != fileInfo.mtime) {
-            log("UPDATED", filePath, fileRecord.fileInfo.mtime, fileInfo.mtime, fileRecord.fileInfo.mtime != fileInfo.mtime);
-            db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
+            stats.updated.push({filePath: filePath, fileInfoMTime: fileInfo.mtime, fileRecordMTime: fileRecord.mtime});
+            saveFileInfoToDb(filePath, fileInfo, newFullPath);
             fs_extra.copySync(filePath, newFullPath)
         }
         else {
-            //log("NOT UPDATED", filePath);
         }
     }else{
-        log("NEW", filePath)
-        db.save(filePath, {atime: fileInfo.atime, mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
+        stats.newFiles.push(filePath)
+        saveFileInfoToDb(filePath, fileInfo, newFullPath);
         fs_extra.copySync(filePath, newFullPath)
     }
     //fs_extra.copySync(filePath, newFullPath)
+}
+function saveFileInfoToDb(filePath, fileInfo, newFullPath){
+    db.save(filePath, {mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
 }
 
 function getFolderForGenre(genre){
@@ -262,45 +259,27 @@ function getFolderForGenre(genre){
     return newPathToFolder;
 }
 
-function getPathForFile(newPathToFolder, filePath){
-    var pathTokens = filePath.split('/');
-    var fileName = pathTokens[pathTokens.length - 1];
-    var newFullPath = newPathToFolder + "/" + fileName;
-    return newFullPath;
-}
 
-function deleteFolderRecursive(path) {
-    if( fs.existsSync(path) ) {
-        fs.readdirSync(path).forEach(function(file,index){
-            var curPath = path + "/" + file;
-            if(fs.lstatSync(curPath).isDirectory()) { // recurse
-                deleteFolderRecursive(curPath);
-            } else { // delete file
-                fs.unlinkSync(curPath);
-            }
-        });
-        fs.rmdirSync(path);
+db = new DB(config.dbfile, function(){
+    if(config.clearTargetFolder) {
+        prompt.start();
+        prompt.get(
+            [{name: "clearTarget",
+                "description": "Really clear target folder? (YeSsSsS/n)"}],
+            function (err, result) {
+                if (result.clearTarget == "YeSsSsS"){
+                    log("CLEARING", config.targetFolder);
+                    fsutils.deleteFolderRecursive(config.targetFolder);
+                    db.clear();
+                    db.persist(function(){
+                        log("CLEARED", config.targetFolder);
+                    });
+                }else{
+                    log("Target folder " + config.targetFolder + " will NOT be cleared")
+                }
+                startProcessing();
+            });
+    }else{
+        startProcessing();
     }
-};
-
-
-if(config.clearTargetFolder) {
-    prompt.start();
-    prompt.get(
-        [
-            {name: "clearTarget",
-                "description": "Really clear target folder? (YeSsSsS/n)"}
-        ],
-        function (err, result) {
-            if (result.clearTarget == "YeSsSsS"){
-                log("CLEARING", config.targetFolder);
-                deleteFolderRecursive(config.targetFolder);
-                log("CLEARED", config.targetFolder);
-            }else{
-                log("Target folder " + config.targetFolder + " will NOT be cleared")
-            }
-            startProcessing();
-        });
-}else{
-    startProcessing();
-}
+});

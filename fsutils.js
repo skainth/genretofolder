@@ -12,13 +12,32 @@ module.exports = {
             fs.unlink(f, function (err) {
                 if (err){
                     console.log(err, "callback", callback)
-                    callback && callback(err);
                 }
                 else {
                     console.log(f + ' deleted.', this);
-                    this.deleteFiles(files, callback);
                 }
+                this.deleteFiles(files, callback);
             }.bind(this));
         }
+    },
+    deleteFolderRecursive: function(path) {
+        var self = this;
+        if( fs.existsSync(path) ) {
+            fs.readdirSync(path).forEach(function(file,index){
+                var curPath = path + "/" + file;
+                if(fs.lstatSync(curPath).isDirectory()) { // recurse
+                    self.deleteFolderRecursive(curPath);
+                } else { // delete file
+                    fs.unlinkSync(curPath);
+                }
+            });
+            fs.rmdirSync(path);
+        }
+    },
+    getPathForFile: function(newPathToFolder, filePath){
+        var pathTokens = filePath.split('/');
+        var fileName = pathTokens[pathTokens.length - 1];
+        var newFullPath = newPathToFolder + "/" + fileName;
+        return newFullPath;
     }
 }
