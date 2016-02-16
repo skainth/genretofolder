@@ -6,13 +6,19 @@ var fs_extra = require('fs-extra');
 var mkdirp = require('mkdirp');
 var fs = require('fs');
 var prompt = require('prompt');
-
 var fsutils = require('./fsutils');
 var processor = require('./Processor');
 var DB = require('./db');
 var config = require('./config');
 
+var Stats = require('./stats');
+var myStats = new Stats(["filesToDelete", "updated", "new", "filesWithError"]);
 var log = console.log;
+
+optimist = require('optimist')
+
+// set the overrides
+prompt.override = optimist.argv;
 
 /*process.on('uncaughtException', function (error) {
     log(error.stack);
@@ -23,7 +29,6 @@ String.prototype.toProperCase = function () {
 };
 
 var masterData = [];
-var stats = {newFiles: [], updated: [], filesWithError: []};
 var allFiles = [], db = null;
 
 function startProcessing(){
@@ -72,7 +77,9 @@ function handleFile(atIndex){
 // Callback to handle data received from id3 handler lib
 function onDataExtracted(err, data){
     if(err){	// Some error processing last file
-        stats.filesWithError.push({file: data.file, errorMsg: err.message});
+        //stats.filesWithError.push({file: data.file, errorMsg: err.message});
+        myStats.add("filesWithError", data.file);
+
     }else{
         processFileData(data);
     }
@@ -129,22 +136,25 @@ function doneProcessing() {
 }
 function showStats(){
     log("I'm Done!\nStats");
-    log("Error", stats.filesWithError.length);
-    if(stats.filesWithError.length)
-        log(stats.filesWithError);
-    log("\nNew", stats.newFiles.length);
-    if(stats.newFiles.length)
-        log(stats.newFiles);
-    log("\nUpdated", stats.updated.length);
-    if(stats.updated.length)
-        log(stats.updated);
+    Object.keys(myStats.getAll()).forEach(function(label){
+        var stats = myStats.get(label)
+        log(label, stats.length);
+        if(stats.length){
+            if(stats.length > config.maxLog){
+                log(stats.splice(0, config.maxLog), "and more...");
+            }else
+                log(stats)
+        }
+    });
 }
-function checkFileMismatch(srcFilePaths, cb){
+function checkFileMismatch(srcFilePaths){
     var filesToDelete = [];
     var sourceFilesNotAvailable = _.difference(srcFilePaths, allFiles);
     sourceFilesNotAvailable.forEach(function(srcFile){
         filesToDelete = filesToDelete.concat(db.get(srcFile).files)
     });
+    if(filesToDelete.length)
+        myStats.add("filesToDelete", filesToDelete);
     if(filesToDelete.length > 0){
         log("Files to Delete", filesToDelete.length);
         log(filesToDelete)
@@ -212,37 +222,38 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
 function copyToFolder(filePath, fileInfo, genre){
     var newPathToFolder = getFolderForGenre(genre);;
     var newFullPath = fsutils.getPathForFile(newPathToFolder, filePath);;
-
-    if(fs.exists(newPathToFolder)){
-        doFileCopy(filePath, fileInfo, newFullPath);
-    }else{
-        mkdirp(newPathToFolder, function(err){
-            if(!err) {
-                doFileCopy(filePath, fileInfo, newFullPath);
-            }
-            else
-                log(err, newFullPath);
-        })
-    }
+    fs_extra.ensureDirSync(newPathToFolder);
+    doFileCopy(filePath, fileInfo, newFullPath);
 }
 
-function doFileCopy(filePath, fileInfo, newFullPath){
-
+function isUpdated(filePath, fileInfo){
     var fileRecord = db.get(filePath);
     if(fileRecord){
-        if(fileRecord.fileInfo.mtime != fileInfo.mtime) {
-            stats.updated.push({filePath: filePath, fileInfoMTime: fileInfo.mtime, fileRecordMTime: fileRecord.mtime});
-            saveFileInfoToDb(filePath, fileInfo, newFullPath);
-            fs_extra.copySync(filePath, newFullPath)
+        return fileRecord.fileInfo.mtime != fileInfo.mtime;
+    }else
+        return false;
+}
+function doFileCopy(sourceFilePath, fileInfo, newFullPath){
+    var fileRecord = db.get(sourceFilePath);
+    if(fileRecord){
+        if(isUpdated(sourceFilePath, fileInfo)){            // Updated
+            myStats.add("updated", sourceFilePath);
+            //stats.updated.push({filePath: sourceFilePath, fileInfoMTime: fileInfo.mtime, fileRecordMTime: fileRecord.mtime});
+            fs_extra.copySync(sourceFilePath, newFullPath); // Copy it
+        }else{
+            myStats.add("unmodified", sourceFilePath);
         }
-        else {
-        }
-    }else{
-        stats.newFiles.push(filePath)
-        saveFileInfoToDb(filePath, fileInfo, newFullPath);
-        fs_extra.copySync(filePath, newFullPath)
+    }else{                                                  // New file
+        var key = sourceFilePath;
+        var value = {fileInfo: {mtime: fileInfo.mtime}, files: [newFullPath]};
+        db.save(key, value);
+        fileRecord = db.get(key);
+        myStats.add("newFiles", sourceFilePath);
+        fs_extra.copySync(sourceFilePath, newFullPath);     // Copy it
     }
-    //fs_extra.copySync(filePath, newFullPath)
+    if(fileRecord.files.indexOf(newFullPath) == -1){        // Update fileRecord
+        fileRecord.files.push(newFullPath);
+    }
 }
 function saveFileInfoToDb(filePath, fileInfo, newFullPath){
     db.save(filePath, {mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
@@ -259,7 +270,9 @@ function getFolderForGenre(genre){
     return newPathToFolder;
 }
 
-
+log("DB file:\t", config.dbfile);
+log("Source:\t\t", config.lookUpFolder);
+log("Target:\t\t", config.targetFolder);
 db = new DB(config.dbfile, function(){
     if(config.clearTargetFolder) {
         prompt.start();

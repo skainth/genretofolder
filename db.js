@@ -18,16 +18,8 @@ function DB(dataFile, callback){
         callback(err);
     });
 
-    this.save = function(filePath, fileInfo, newFullPath){
-        var obj = data[filePath];
-        if(obj){
-            obj.files.push(newFullPath);
-        }else{
-            obj = data[filePath] = {};
-            obj.files = [];
-            obj.files.push(newFullPath);
-        }
-        obj.fileInfo = fileInfo;
+    this.save = function(key, value){
+        data[key] = value;
     }
     this.get = function(filePath){
         return data[filePath];
@@ -46,11 +38,9 @@ function DB(dataFile, callback){
         if(!Array.isArray(keys)){
             keys = [keys];
         }
-        console.log("Data len before", Object.keys(data).length)
         keys.forEach(function(key){
             delete data[key];
         });
-        console.log("Data len After", Object.keys(data).length)
     }
     this.clear = function(){
         data = {};

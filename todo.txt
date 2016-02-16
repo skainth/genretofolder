@@ -1,6 +1,12 @@
+check delete directory
+change optimist to minimist
+Before delete ensure that they are not under source/lookup folder
+/Users/z001hmj/Google Drive/Muzik/4. New folder/04 - I Dont Know What To Do.mp3
+files renamed in source are not getting listed after processing for deletion
+show option to delete non-existent files after showing full stats
+show MacOSX toast notifications
 use fs-extra for file/directory related stuff
 back up db json before writing to it. Write to it after proper data check. On any error close files, revert old db file. check source code of jsonfile
-Remove hack to work around prompt to delete target files for non existent source files
 
 folder images
 Add config for supported extentions

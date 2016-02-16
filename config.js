@@ -4,7 +4,9 @@
 module.exports = {
      //lookUpFolder: "/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Lembher Hussainpuri",
     lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
-    targetFolder: "/Users/z001hmj/out/Muzik",
+    targetFolder: "/Users/z001hmj/output/Muzik",
+    /*lookUpFolder: "/Users/z001hmj/SKI/temp/Rockstar",
+    targetFolder: "/Users/z001hmj/SKI/temp/output/Muzik",*/
     allowedExtentions: ['.mp3', 'wma'],
     //ignoredFolders:['4. New folder'],
     metaDataAttrs: [
@@ -28,6 +30,7 @@ module.exports = {
         "Others":"Others"
     },
     dbfile: "data.json",
-    clearTargetFolder: false
+    clearTargetFolder: true,
+    maxLog: 5
 
 };
