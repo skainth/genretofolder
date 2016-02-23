@@ -10,25 +10,22 @@ var fsutils = require('./fsutils');
 var processor = require('./Processor');
 var DB = require('./db');
 var config = require('./config');
+var utils = require('./utils');
 
 var Stats = require('./stats');
 var myStats = new Stats(["filesToDelete", "updated", "new", "filesWithError"]);
 var log = console.log;
+var l = log;
 
-optimist = require('optimist')
+var minimist = require('minimist')
 
 // set the overrides
-prompt.override = optimist.argv;
-
-/*process.on('uncaughtException', function (error) {
-    log(error.stack);
-});*/
+prompt.override = minimist(process.argv.slice(2));
 
 String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 };
 
-var masterData = [];
 var allFiles = [], db = null;
 
 function startProcessing(){
@@ -65,6 +62,9 @@ function handleFile(atIndex){
     if(!file){ // no more files
         log("No more files to process");
         moveFilesToProperFolders(masterData);
+        db.persist(function(){
+            log("DB Saved")
+        });
         return;
     }
     if(ignore(file)){
@@ -91,9 +91,10 @@ function onDataExtracted(err, data){
 function processFileData(data){
     var file = data.file;
     var fileInfo = _.extend({file: data.file, metaData: {}}, data);
+    //var fileInfo = _.extend({file: data.file, metaData: {ctime: data.ctime, mtime: data.mtime}}, {});
     config.metaDataAttrs.forEach(function(metaDataAttr){
         var metaDataObject = data.metadata[metaDataAttr.name];
-        try {
+
             if(Array.isArray(metaDataObject)) {
                 metaDataObject.forEach(function (metaData) {
                     parseMetaData(file, metaData, metaDataAttr, fileInfo);
@@ -101,50 +102,72 @@ function processFileData(data){
             } else {
                 parseMetaData(file, metaDataObject, metaDataAttr, fileInfo);
             }
-        }catch(e){
-            log("EXCEPTION", e, metaDataAttr);
-            throw e
-        }
+
     });
     moveFiletoBuckets(fileInfo);
 }
+
+var masterData = {};
+for(var index = 0; index < config.metaDataAttrs.length; index ++){
+    var configMetaData = config.metaDataAttrs[index];
+    var attrName = configMetaData.name;
+    if(!masterData[attrName]){
+        masterData[attrName] = {};
+    }
+}
+var dataStore = {};
 function moveFiletoBuckets(fileInfo){
+    if(!dataStore[fileInfo.file]){
+        dataStore[fileInfo.file] = {src: fileInfo.file, targets: []}
+    }
+    var fileObj = dataStore[fileInfo.file];
+    for(var index = 0; index < config.metaDataAttrs.length; index ++) {
+        var configMetaData = config.metaDataAttrs[index];
+        var attrName = configMetaData.name;
+        var attrValues = masterData[attrName];
+
+        if(fileInfo.metaData[attrName]) {
+            fileObj[attrName] = fileInfo.metaData[attrName];
+            /*for(var attrIndex = 0; attrIndex < fileInfo.metaData[attrName].length; attrIndex ++){
+                var data = fileInfo.metaData[attrName][attrIndex];
+                log("GGG", fileObj.src, attrName, data);
+                var newPathToFolder = utils.getFolderForGenre(data, config);
+                var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);;
+            }*/
+        }
+        fileObj.mtime = fileInfo.mtime;
+    }
+}
+
+function moveFiletoBucketsOLD(fileInfo){
     for(var index = 0; index < config.metaDataAttrs.length; index ++){
         var configMetaData = config.metaDataAttrs[index];
-        if(fileInfo.metaData[configMetaData.name]){
-            if(!masterData[configMetaData.name])
-                masterData[configMetaData.name] = [];
-            //masterData[configMetaData.name] =
-            fileInfo.metaData[configMetaData.name].forEach(function(data){
-                if(!masterData[configMetaData.name][data])
-                    masterData[configMetaData.name][data] = [];
-                masterData[configMetaData.name][data].push(fileInfo.file);
-            })
+        var attrName = configMetaData.name;
+        var attrValues = masterData[attrName];
+
+        try {
+            if(fileInfo.metaData[attrName]) {
+                for(var attrIndex = 0; attrIndex < fileInfo.metaData[attrName].length; attrIndex ++){
+                    var data = fileInfo.metaData[attrName][attrIndex];
+                    if (!attrValues[data]) {
+                        attrValues[data] = {files: {}};
+                    }
+                    if (!attrValues[data].files[fileInfo.file]) {
+                        attrValues[data].files[fileInfo.file] = fileInfo;
+                    }
+                }
+            }
+        }catch(e){
+            log("EX", e, attrName, fileInfo.file);
         }
     }
-    //if(fileInfo.metaData[config.metaDataAttrs])
-}
-function moveFilesToProperFolders(masterData) {
-    db.keys(checkFileMismatch);
 }
 function doneProcessing() {
     db.persist(function () {
-        showStats();
+        utils.showStats();
+        log("config.dbfile", config.dbfile)
         //Copy database file to output folder
         fs_extra.copy(config.dbfile, config.targetFolder + "/" + config.dbfile);
-    });
-}
-function showStats(){
-    log("I'm Done!\nStats");
-    Object.keys(myStats.getAll()).forEach(function(label){
-        var stats = myStats.get(label)
-        log(label, stats.length);
-        if(stats.length){
-            if(stats.length > config.maxLog){
-                log(stats.splice(0, config.maxLog), "and more...");
-            }else
-                log(stats)
-        }
     });
 }
 function checkFileMismatch(srcFilePaths){
@@ -173,7 +196,29 @@ function checkFileMismatch(srcFilePaths){
         doneProcessing()
     }
 }
-function parseMetaData(file, metaData, metaDataAttr, fileInfo){
+function parseMetaData(file, metaData, metaDataAttr, fInfo){
+  /*  var fileInfo = {ctime: fInfo.ctime, mtime: fInfo.mtime, metaData: []};
+    var attrsToCopyFromFileInfo = ['ctime', 'mtime'];
+
+    config.metaDataAttrs.forEach(function(attr){
+       attrsToCopyFromFileInfo.push(attr.name);
+    });
+    var fileInfo = {metaData: []};
+    attrsToCopyFromFileInfo.forEach(function(attr){
+        //log(file)
+        try {
+            if (fInfo[attr])
+                fileInfo.metaData[attr] = [];
+            else if(fInfo.metadata[attr])
+             fileInfo.metaData[attr] = [];
+        }catch(e){
+            log(e, file);
+            process.exit(0)
+        }
+
+    })
+    log(fileInfo)*/
+    var fileInfo = fInfo;
     metaData = metaData.trim();
     var processedFile = false;
     if(metaDataAttr.splitters) {
@@ -182,6 +227,10 @@ function parseMetaData(file, metaData, metaDataAttr, fileInfo){
                 var metaDataSplit = metaData.split(splitter);
                 metaDataSplit.forEach(function (mData) {
                     mData = mData.trim();
+                    if(metaDataAttr.ignore && metaDataAttr.ignore.indexOf(mData)!= -1){
+                        //log("IGNORE", mData, metaDataAttr, file);
+                        return;
+                    }
                     saveFileData(file, mData, metaDataAttr.name, fileInfo);
                     processedFile = true;
                 });
@@ -196,10 +245,9 @@ function parseMetaData(file, metaData, metaDataAttr, fileInfo){
 
 // Save file to path based upon its genre
 function saveFileData(file, metaData, metaDataAttrName, fileInfo){
-    if(!fileInfo.metaData[metaDataAttrName])
-        fileInfo.metaData[metaDataAttrName] = [];
-    fileInfo.metaData[metaDataAttrName].push(metaData);
-
+        if (!fileInfo.metaData[metaDataAttrName])
+            fileInfo.metaData[metaDataAttrName] = [];
+        fileInfo.metaData[metaDataAttrName].push(metaData);
   /*  var masterDataForPrimary = null;
     switch(metaDataAttrName){
         if() 'genre':{
@@ -211,17 +259,18 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
         case 'artist':{
         }
     }*/
-    if(metaDataAttrName == "genre") {
+    /*if(metaDataAttrName == "genre") {
         if (!masterData[metaData])
             masterData[metaData] = [];
         copyToFolder(file, fileInfo, metaData);
-    }
+    }*/
 }
 
 // Copy file to folder depending upon the file's genre
-function copyToFolder(filePath, fileInfo, genre){
-    var newPathToFolder = getFolderForGenre(genre);;
+function copyToFolder(filePath, fileInfo, genre, config){
+    var newPathToFolder = utils.getFolderForGenre(genre, config);
     var newFullPath = fsutils.getPathForFile(newPathToFolder, filePath);;
+    log(filePath, genre, newFullPath)
     fs_extra.ensureDirSync(newPathToFolder);
     doFileCopy(filePath, fileInfo, newFullPath);
 }
@@ -233,6 +282,19 @@ function isUpdated(filePath, fileInfo){
     }else
         return false;
 }
+function isFileUpdated(fileRec, currentFileDetails){
+    return (fileRec.fileInfo.mtime != currentFileDetails.mtime)
+}
+function copyFiles(src, targets){
+    // Copy files
+    //1. Ensure file
+    //fs_extra.ensure
+    //2. Copy file
+    // Save in DB
+    targets.forEach(function(targetFile){
+        fs_extra.copySync(src, targetFile);
+    })
+}
 function doFileCopy(sourceFilePath, fileInfo, newFullPath){
     var fileRecord = db.get(sourceFilePath);
     if(fileRecord){
@@ -240,6 +302,8 @@ function doFileCopy(sourceFilePath, fileInfo, newFullPath){
             myStats.add("updated", sourceFilePath);
             //stats.updated.push({filePath: sourceFilePath, fileInfoMTime: fileInfo.mtime, fileRecordMTime: fileRecord.mtime});
             fs_extra.copySync(sourceFilePath, newFullPath); // Copy it
+            fileRecord.fileInfo.mtime = fileInfo.mtime;
+            db.save(sourceFilePath, fileRecord);            // Update DB
         }else{
             myStats.add("unmodified", sourceFilePath);
         }
@@ -255,20 +319,8 @@ function doFileCopy(sourceFilePath, fileInfo, newFullPath){
         fileRecord.files.push(newFullPath);
     }
 }
-function saveFileInfoToDb(filePath, fileInfo, newFullPath){
-    db.save(filePath, {mtime: fileInfo.mtime, size: fileInfo.size}, newFullPath);
-}
 
-function getFolderForGenre(genre){
-    genre = genre.trim();
-    var newPathToFolder = "";
-    if(!config.genreToFolder[genre]){
-        newPathToFolder = config.targetFolder + "/" +  config.genreToFolder["Others"] + "/" + genre;
-    }
-    else
-        newPathToFolder = config.targetFolder + "/" +  config.genreToFolder[genre];
-    return newPathToFolder;
-}
+config.dbfile = utils.getUniqueDBFileName(config);
 
 log("DB file:\t", config.dbfile);
 log("Source:\t\t", config.lookUpFolder);
@@ -296,3 +348,85 @@ db = new DB(config.dbfile, function(){
         startProcessing();
     }
 });
+
+function moveFilesToProperFolders(masterData) {
+    //Set target files
+    for(var sourceFile in dataStore){
+        if(dataStore[sourceFile].genre){
+            dataStore[sourceFile].genre.forEach(function(genre){
+                //log(sourceFile, genre);
+                var newPathToFolder = utils.getFolderForGenre(genre, config);
+                var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);
+                //log(newFullPath)
+                dataStore[sourceFile].targets.push(newFullPath);
+            })
+        }
+    }
+
+    // Copy the files/Update DB
+    for(var sourceFile in dataStore){
+        var currentFileDetails = dataStore[sourceFile]
+        var fileRec = db.get(sourceFile);
+        if(fileRec){
+            if(isFileUpdated(fileRec, currentFileDetails)){
+                l("UPDATED", fileRec.fileInfo.mtime, currentFileDetails.mtime, "FILEREC", fileRec, "currentFileDetails", currentFileDetails);
+                // Update mtime, targets
+                fileRec.fileInfo.mtime = currentFileDetails.mtime;
+                fileRec.targets = currentFileDetails.targets;
+
+                copyFiles(sourceFile, currentFileDetails.targets);
+                db.save(sourceFile, fileRec);
+
+                //TODO: Delete files which are no longer required in target
+            }else{
+                //l("SAME");
+                myStats.add("unmodified", sourceFile);
+            }
+        }else{
+            var key = sourceFile;
+            var value = {fileInfo: {mtime: currentFileDetails.mtime}, targets: currentFileDetails.targets};
+            log("NEW FILE", key, value);
+            copyFiles(sourceFile, currentFileDetails.targets);
+            db.save(key, value);
+            db.persist()
+        }
+    }
+return;
+    if(masterData.genre) {
+        for(var genre in masterData.genre){
+            var files = masterData.genre[genre].files;
+            log("**", genre);
+            for(var sourceFile in files){
+                copyFileIfSourceUpdated(sourceFile, files[sourceFile], genre);
+            }
+            log("****\n");
+            /*
+            for(file in files){
+                log(file);continue;
+                for(var g of files[file].metaData["genre"]){
+                    var fileInfo = files[file];
+                    copyToFolder(file, fileInfo, g, config);
+                }
+            }*/
+        }
+        //db.show();
+        db.persist();
+    }
+}
+function copyFileIfSourceUpdated(sourceFile, fileDetails, genre){
+    var newPathToFolder = utils.getFolderForGenre(genre, config);
+    var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);;
+    log("SOURCE", sourceFile, newFullPath);
+
+    /*var fileRecord = db.get(sourceFile);
+    if(fileRecord){
+
+    }else{
+        var key = sourceFilePath;
+        var value = {fileInfo: {mtime: fileInfo.mtime}, files: [newFullPath]};
+        db.save(key, value);
+        fileRecord = db.get(key);
+    }*/
+ /*   log(filePath, genre, newFullPath)
+    fs_extra.ensureDirSync(newPathToFolder);*/
+}

@@ -1,5 +1,12 @@
+Delete files which are no longer required in target. Do this before copying files to target
+Files with same name and Genre/Artist/Album etc. so that their final name resolves to same
+if file is deleted from target, update DB
+same file in different folders (De Deedar - Wadali)
+instrumental/instrumental genre (kenny g I will always love you)
+while changing source/target dirs change data.json also
+add files to unmodified only if they are not in new
 check delete directory
-change optimist to minimist
+change minimist to minimist
 Before delete ensure that they are not under source/lookup folder
 /Users/z001hmj/Google Drive/Muzik/4. New folder/04 - I Dont Know What To Do.mp3
 files renamed in source are not getting listed after processing for deletion
@@ -10,5 +17,3 @@ back up db json before writing to it. Write to it after proper data check. On an
 
 folder images
 Add config for supported extentions
-
-Updated called twice '/Users/z001hmj/Google Drive/Muzik/1. Punjabi/Punjabi Pop/Jogi Jatt Bangaye.mp3'

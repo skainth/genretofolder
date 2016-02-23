@@ -2,12 +2,16 @@
  * Created by z001hmj on 2/8/16.
  */
 var jsonfile = require('jsonfile');
+var fs_extra = require('fs-extra');
 
 function DB(dataFile, callback){
     var data = {};
     jsonfile.readFile(dataFile, function(err, fileData){
         if(err){
             console.log("ERROR", err);
+            fs_extra.writeJson(dataFile, {}, function (err) {
+                callback && callback(err);
+            })
         }else{
             if(typeof fileData == "string")
                 data = JSON.parse(fileData);
