@@ -18,7 +18,7 @@ module.exports = {
         return newPathToFolder;
     },
     showStats: function (){
-        log("I'm Done!\nStats");
+        console.log("I'm Done!\nStats");
         Object.keys(myStats.getAll()).forEach(function(label){
             var stats = myStats.get(label)
             log(label, stats.length);

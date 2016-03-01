@@ -1,5 +1,7 @@
 // Program to arrange mp3/wma file based upon their genre(s)
 
+"use strict"
+
 var _ = require('underscore');
 var recursive = require('recursive-readdir');
 var fs_extra = require('fs-extra');
@@ -37,9 +39,34 @@ function startProcessing(){
             log("scan look up directory", config.lookUpFolder, "failed with error", err);
         }else{
             allFiles = files;
-            handleFile(0);
+            db.keys(function(sourceFilePaths){
+                if(sourceFilePaths.length){
+                    var filesData = getDiff(sourceFilePaths, files);
+                    var targetFilestoDelete = new Set();
+                    for(let fileSrc in filesData){
+                        let targetFiles = filesData[fileSrc];
+                        db.remove(fileSrc);
+                        for(let targetFile of targetFiles){
+                            targetFilestoDelete.add(targetFile);
+                        }
+                        db.persist();
+                    }
+                    l("Files to delete from target", targetFilestoDelete);
+                    fsutils.delFilesSync(targetFilestoDelete)
+                }
+                handleFile(0);
+            });
         }
     });
+}
+function getDiff(sourceFilePaths, allFiles){
+    var obj = {};
+    var missingSourceFiles =  _.difference(sourceFilePaths, allFiles);
+    for(var srcFile of missingSourceFiles){
+        var fileRec = db.get(srcFile);
+        obj[srcFile] = fileRec.targets;
+    }
+    return obj;
 }
 //Files/Directories to be ignored
 function ignore(file){
@@ -61,9 +88,10 @@ function handleFile(atIndex){
     var file = allFiles[atIndex];
     if(!file){ // no more files
         log("No more files to process");
-        moveFilesToProperFolders(masterData);
+        moveFilesToProperFolders(dataStore);
         db.persist(function(){
-            log("DB Saved")
+            l("DB Saved");
+            doneProcessing();
         });
         return;
     }
@@ -164,7 +192,7 @@ function moveFiletoBucketsOLD(fileInfo){
 }
 function doneProcessing() {
     db.persist(function () {
-        utils.showStats();
+        //utils.showStats();
         log("config.dbfile", config.dbfile)
         //Copy database file to output folder
         fs_extra.copy(config.dbfile, config.targetFolder + "/" + config.dbfile);
@@ -349,17 +377,22 @@ db = new DB(config.dbfile, function(){
     }
 });
 
-function moveFilesToProperFolders(masterData) {
+function setTargetsForSourceFile(dataStore, genre, sourceFile){
+    var newPathToFolder = utils.getFolderForGenre(genre, config);
+    var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);
+    //log(newFullPath)
+    if(dataStore[sourceFile].targets.indexOf(newFullPath) == -1)
+        dataStore[sourceFile].targets.push(newFullPath);
+}
+function moveFilesToProperFolders(dataStore) {
     //Set target files
     for(var sourceFile in dataStore){
         if(dataStore[sourceFile].genre){
             dataStore[sourceFile].genre.forEach(function(genre){
-                //log(sourceFile, genre);
-                var newPathToFolder = utils.getFolderForGenre(genre, config);
-                var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);
-                //log(newFullPath)
-                dataStore[sourceFile].targets.push(newFullPath);
-            })
+                setTargetsForSourceFile(dataStore, genre, sourceFile);
+            });
+        }else{
+            setTargetsForSourceFile(dataStore, '', sourceFile);
         }
     }
 
@@ -372,6 +405,11 @@ function moveFilesToProperFolders(masterData) {
                 l("UPDATED", fileRec.fileInfo.mtime, currentFileDetails.mtime, "FILEREC", fileRec, "currentFileDetails", currentFileDetails);
                 // Update mtime, targets
                 fileRec.fileInfo.mtime = currentFileDetails.mtime;
+
+                //Delete old targets
+                fsutils.delFilesSync(currentFileDetails.targets);
+
+                // Update with new targets
                 fileRec.targets = currentFileDetails.targets;
 
                 copyFiles(sourceFile, currentFileDetails.targets);
@@ -385,7 +423,7 @@ function moveFilesToProperFolders(masterData) {
         }else{
             var key = sourceFile;
             var value = {fileInfo: {mtime: currentFileDetails.mtime}, targets: currentFileDetails.targets};
-            log("NEW FILE", key, value);
+            log("NEW FILE", key);
             copyFiles(sourceFile, currentFileDetails.targets);
             db.save(key, value);
             db.persist()

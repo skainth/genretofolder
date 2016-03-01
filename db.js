@@ -25,6 +25,9 @@ function DB(dataFile, callback){
     this.save = function(key, value){
         data[key] = value;
     }
+    this.remove = function(key){
+        delete data[key];
+    }
     this.get = function(filePath){
         return data[filePath];
     }

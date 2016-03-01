@@ -1,7 +1,13 @@
 /**
  * Created by z001hmj on 2/9/16.
  */
+
+"use strict"
+
+var path = require('path');
 var fs = require('fs');
+
+var l = console.log;
 module.exports = {
     deleteFiles: function (files, callback) {
         if (files.length == 0) {
@@ -18,6 +24,21 @@ module.exports = {
                 }
                 this.deleteFiles(files, callback);
             }.bind(this));
+        }
+    },
+    delFilesSync: function(targetFilesToDelete){
+        for(let file of targetFilesToDelete){
+            l("del", file);
+            try {
+                fs.unlinkSync(file);
+            }catch(e){
+                l("Error deleting", file, e);
+            }
+            let dir = path.dirname(file);
+            if((dir, fs.readdirSync(dir).length) == 0){
+                l("DELETE folder", dir);
+                fs.rmdir(dir);
+            }
         }
     },
     deleteFolderRecursive: function(path) {
