@@ -22,7 +22,6 @@ var db = new DB(dbFileName, function(){
         for(let srcFile of sourceFiles){
             targets = _.union(targets, db.get(srcFile).targets);
         }
-        l(targets);
         recursive(config.targetFolder, function (err, physicalTargetFiles) {
             if(err){
                 l(err)

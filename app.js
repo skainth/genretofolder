@@ -402,7 +402,8 @@ function moveFilesToProperFolders(dataStore) {
         var fileRec = db.get(sourceFile);
         if(fileRec){
             if(isFileUpdated(fileRec, currentFileDetails)){
-                l("UPDATED", fileRec.fileInfo.mtime, currentFileDetails.mtime, "FILEREC", fileRec, "currentFileDetails", currentFileDetails);
+                l("UPDATED", sourceFile);
+                //l("UPDATED", sourceFile, fileRec.fileInfo.mtime, currentFileDetails.mtime, "FILEREC", fileRec, "currentFileDetails", currentFileDetails);
                 // Update mtime, targets
                 fileRec.fileInfo.mtime = currentFileDetails.mtime;
 

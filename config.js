@@ -9,9 +9,9 @@ module.exports = {
     allowedExtentions: ['.mp3', 'wma'],
     //ignoredFolders:['4. New folder'],
     metaDataAttrs: [
-        {name: 'genre', splitters: [',', ';'], ignore: ['Movie']},
-        {name: 'artist', splitters: [',', ';']},
-        {name: 'album'}
+        {name: 'genre', splitters: [',', ';', '/'], ignore: ['Movie']},
+       /* {name: 'artist', splitters: [',', ';']},
+        {name: 'album'}*/
     ],
     genreToFolder:{
         'Bhangra': "Punjabi/Bhangra",
