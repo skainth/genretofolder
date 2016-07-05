@@ -408,7 +408,11 @@ function moveFilesToProperFolders(dataStore) {
                 fileRec.fileInfo.mtime = currentFileDetails.mtime;
 
                 //Delete old targets
-                fsutils.delFilesSync(currentFileDetails.targets);
+                try {
+                  fsutils.delFilesSync(currentFileDetails.targets);
+                }catch(excp){
+                  log("exp deleting old files", excp);
+                }
 
                 // Update with new targets
                 fileRec.targets = currentFileDetails.targets;
