@@ -299,7 +299,12 @@ function copyToFolder(filePath, fileInfo, genre, config){
     var newPathToFolder = utils.getFolderForGenre(genre, config);
     var newFullPath = fsutils.getPathForFile(newPathToFolder, filePath);;
     log(filePath, genre, newFullPath)
-    fs_extra.ensureDirSync(newPathToFolder);
+    try{
+        fs_extra.ensureDirSync(newPathToFolder);
+    }catch(e){
+        log("Error ensureDirSync", e);
+        exit(-1)
+    }
     doFileCopy(filePath, fileInfo, newFullPath);
 }
 
@@ -320,7 +325,11 @@ function copyFiles(src, targets){
     //2. Copy file
     // Save in DB
     targets.forEach(function(targetFile){
-        fs_extra.copySync(src, targetFile);
+        try{
+            fs_extra.copySync(src, targetFile);
+        }catch(e){
+            log("error copying", e, targetFile);
+        }
     })
 }
 function doFileCopy(sourceFilePath, fileInfo, newFullPath){

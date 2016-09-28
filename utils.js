@@ -2,6 +2,7 @@
  * Created by z001hmj on 2/18/16.
  */
 
+var path = require('path');
 var crc = require('crc');
 module.exports = {
     getUniqueDBFileName: function (config){
@@ -11,10 +12,10 @@ module.exports = {
         genre = genre.trim();
         var newPathToFolder = "";
         if(!config.genreToFolder[genre]){
-            newPathToFolder = config.targetFolder + "/" +  config.genreToFolder["Others"] + "/" + genre;
+            newPathToFolder = config.targetFolder + path.sep +  config.genreToFolder["Others"] + "/" + genre;
         }
         else
-            newPathToFolder = config.targetFolder + "/" +  config.genreToFolder[genre];
+            newPathToFolder = config.targetFolder + path.sep +  config.genreToFolder[genre];
         return newPathToFolder;
     },
     showStats: function (){

@@ -56,9 +56,9 @@ module.exports = {
         }
     },
     getPathForFile: function(newPathToFolder, filePath){
-        var pathTokens = filePath.split('/');
+        var pathTokens = filePath.split(path.sep); 
         var fileName = pathTokens[pathTokens.length - 1];
-        var newFullPath = newPathToFolder + "/" + fileName;
+        var newFullPath = newPathToFolder + path.sep + fileName;
         return newFullPath;
     }
 }

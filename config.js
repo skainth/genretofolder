@@ -2,8 +2,8 @@
  * Created by z001hmj on 1/29/16.
  */
 module.exports = {
-    lookUpFolder: "/Users/z001hmj/Google Drive/Muzik",
-    targetFolder: "/Users/z001hmj/out/Muzik",
+    lookUpFolder: "C:\\Users\\IEUser\\Google Drive\\Muzik",
+    targetFolder: "C:\\Users\\IEUser\\out\\Muzik",
     /*lookUpFolder: "/Users/z001hmj/SKI/temp/src",
     targetFolder: "/Users/z001hmj/SKI/temp/output/Muzik",*/
     allowedExtentions: ['.mp3', 'wma'],
