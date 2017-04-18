@@ -156,12 +156,6 @@ function moveFiletoBuckets(fileInfo){
 
         if(fileInfo.metaData[attrName]) {
             fileObj[attrName] = fileInfo.metaData[attrName];
-            /*for(var attrIndex = 0; attrIndex < fileInfo.metaData[attrName].length; attrIndex ++){
-                var data = fileInfo.metaData[attrName][attrIndex];
-                log("GGG", fileObj.src, attrName, data);
-                var newPathToFolder = utils.getFolderForGenre(data, config);
-                var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);;
-            }*/
         }
         fileObj.mtime = fileInfo.mtime;
     }
@@ -225,27 +219,6 @@ function checkFileMismatch(srcFilePaths){
     }
 }
 function parseMetaData(file, metaData, metaDataAttr, fInfo){
-  /*  var fileInfo = {ctime: fInfo.ctime, mtime: fInfo.mtime, metaData: []};
-    var attrsToCopyFromFileInfo = ['ctime', 'mtime'];
-
-    config.metaDataAttrs.forEach(function(attr){
-       attrsToCopyFromFileInfo.push(attr.name);
-    });
-    var fileInfo = {metaData: []};
-    attrsToCopyFromFileInfo.forEach(function(attr){
-        //log(file)
-        try {
-            if (fInfo[attr])
-                fileInfo.metaData[attr] = [];
-            else if(fInfo.metadata[attr])
-             fileInfo.metaData[attr] = [];
-        }catch(e){
-            log(e, file);
-            process.exit(0)
-        }
-
-    })
-    log(fileInfo)*/
     var fileInfo = fInfo;
     metaData = metaData.trim();
     var processedFile = false;
@@ -276,22 +249,6 @@ function saveFileData(file, metaData, metaDataAttrName, fileInfo){
         if (!fileInfo.metaData[metaDataAttrName])
             fileInfo.metaData[metaDataAttrName] = [];
         fileInfo.metaData[metaDataAttrName].push(metaData);
-  /*  var masterDataForPrimary = null;
-    switch(metaDataAttrName){
-        if() 'genre':{
-            if(!masterData[metaDataAttrName])
-                masterData[metaDataAttrName] = [];
-            masterDataForPrimary = masterData[metaDataAttrName];
-            break;
-        }
-        case 'artist':{
-        }
-    }*/
-    /*if(metaDataAttrName == "genre") {
-        if (!masterData[metaData])
-            masterData[metaData] = [];
-        copyToFolder(file, fileInfo, metaData);
-    }*/
 }
 
 // Copy file to folder depending upon the file's genre
@@ -452,14 +409,6 @@ return;
                 copyFileIfSourceUpdated(sourceFile, files[sourceFile], genre);
             }
             log("****\n");
-            /*
-            for(file in files){
-                log(file);continue;
-                for(var g of files[file].metaData["genre"]){
-                    var fileInfo = files[file];
-                    copyToFolder(file, fileInfo, g, config);
-                }
-            }*/
         }
         //db.show();
         db.persist();
@@ -469,16 +418,4 @@ function copyFileIfSourceUpdated(sourceFile, fileDetails, genre){
     var newPathToFolder = utils.getFolderForGenre(genre, config);
     var newFullPath = fsutils.getPathForFile(newPathToFolder, sourceFile);;
     log("SOURCE", sourceFile, newFullPath);
-
-    /*var fileRecord = db.get(sourceFile);
-    if(fileRecord){
-
-    }else{
-        var key = sourceFilePath;
-        var value = {fileInfo: {mtime: fileInfo.mtime}, files: [newFullPath]};
-        db.save(key, value);
-        fileRecord = db.get(key);
-    }*/
- /*   log(filePath, genre, newFullPath)
-    fs_extra.ensureDirSync(newPathToFolder);*/
 }
