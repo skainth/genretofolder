@@ -5,7 +5,6 @@
 var _ = require('underscore');
 var recursive = require('recursive-readdir');
 var fs_extra = require('fs-extra');
-var prompt = require('prompt');
 var fsutils = require('./fsutils');
 var processor = require('./Processor');
 var DB = require('./db');
@@ -18,9 +17,6 @@ var log = console.log;
 var l = log;
 
 var minimist = require('minimist')
-
-// set the overrides
-prompt.override = minimist(process.argv.slice(2));
 
 String.prototype.toProperCase = function () {
     return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
@@ -318,27 +314,7 @@ log("DB file:\t", config.dbfile);
 log("Source:\t\t", config.lookUpFolder);
 log("Target:\t\t", config.targetFolder);
 db = new DB(config.dbfile, function(){
-    if(config.clearTargetFolder) {
-        prompt.start();
-        prompt.get(
-            [{name: "clearTarget",
-                "description": "Really clear target folder? (YeSsSsS/n)"}],
-            function (err, result) {
-                if (result.clearTarget == "YeSsSsS"){
-                    log("CLEARING", config.targetFolder);
-                    fsutils.deleteFolderRecursive(config.targetFolder);
-                    db.clear();
-                    db.persist(function(){
-                        log("CLEARED", config.targetFolder);
-                    });
-                }else{
-                    log("Target folder " + config.targetFolder + " will NOT be cleared")
-                }
-                startProcessing();
-            });
-    }else{
         startProcessing();
-    }
 });
 
 function setTargetsForSourceFile(dataStore, genre, sourceFile){

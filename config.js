@@ -14,19 +14,15 @@ module.exports = {
         {name: 'album'}*/
     ],
     genreToFolder:{
-        'Bhangra': "Punjabi/Bhangra",
-        'Punjabi Pop': "Punjabi/Punjabi Pop",
-        "Punjabi Soul": "Punjabi/Punjabi Soul",
-        "Hindi Pop":"Hindi/Hindi Pop",
-        "Hindi Soul":"Hindi/Hindi Soul",
-        "English Pop": "English/English Pop",
-        "English Soul": "English/English Soul",
-        "Instrumental": "Instrumental",
-        "Hindi Instrumental": "Instrumental/Hindi Instrumental",
-        "Lounge": "Instrumental/Lounge",
-        "Lounge & Mix": "Instrumental/Lounge",
-        "Sufi":"Sufi",
-        "Others":"Others"
+        'Bhangra': "1. Punjabi/Bhangra",
+        'Punjabi Pop': "1. Punjabi/Punjabi Pop",
+        "Punjabi Soul": "1. Punjabi/Punjabi Soul",
+        "Hindi Pop":"2. Hindi/Hindi Pop",
+        "Hindi Soul":"2. Hindi/Hindi Soul",
+        "English Pop": "3. English/English Pop",
+        "English Soul": "3. English/English Soul",
+        "Beats": "4. Beats",
+        "Others":"5. Others"
     },
     dbfile: "data.json",
     clearTargetFolder: true,
