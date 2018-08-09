@@ -1,3 +1,5 @@
+## A rewritten version of this utility is available at https://github.com/skainth/g2f
+
 Personal project to learn nodejs.
 This is a utility to arrange mp3 files in folders based upon their genres.
 
